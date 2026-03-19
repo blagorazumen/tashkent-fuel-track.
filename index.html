@@ -1,33 +1,97 @@
-<style>
-    .refresh-container { text-align: center; margin-bottom: 20px; }
-    .refresh-btn { 
-        background: transparent; border: 1px solid var(--border-blue); 
-        color: var(--border-blue); padding: 8px 20px; border-radius: 20px; 
-        font-size: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase;
-    }
-    /* Анимация моргания при обновлении */
-    @keyframes blink {
-        0% { opacity: 1; }
-        50% { opacity: 0.3; }
-        100% { opacity: 1; }
-    }
-    .updating { animation: blink 0.5s linear; }
-</style>
-
-<div class="refresh-container">
-    <button class="refresh-btn" onclick="refreshData()">🔄 Обновить данные</button>
-</div>
-
-<script>
-    function refreshData() {
-        tg.HapticFeedback.notificationOccurred('success'); // Вибрация при успехе
-        const board = document.querySelector('.fuel-scoreboard');
-        board.classList.add('updating'); // Включаем моргание
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fuel Tracker Tashkent</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root { --bg: #000; --fuel-green: #36fd80; --border-blue: #0ea5e9; --screen-orange: #fb923c; --text-color: #f8fafc; --card: #1e293b; }
+        body { background: var(--bg); color: var(--text-color); font-family: -apple-system, sans-serif; margin: 0; padding: 15px; overflow-x: hidden; }
         
-        // Имитируем загрузку 1 секунду
-        setTimeout(() => {
-            board.classList.remove('updating');
-            tg.showAlert("Данные успешно обновлены!");
-        }, 1000);
-    }
-</script>
+        /* Табло как на фото */
+        .fuel-scoreboard { width: 100%; max-width: 320px; margin: 0 auto 15px; background: #000; border: 4px solid var(--border-blue); border-radius: 12px; padding: 10px; box-shadow: 0 0 20px rgba(14, 165, 233, 0.4); transition: 0.3s; }
+        .score-header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid var(--border-blue); padding-bottom: 10px; margin-bottom: 10px; }
+        .fuel-icon { font-size: 35px; color: var(--fuel-green); }
+        .fuel-title { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
+        .score-row { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-blue); border-radius: 6px; padding: 5px 10px; margin-bottom: 6px; height: 35px; }
+        .row-type { font-size: 13px; font-weight: bold; color: var(--border-blue); }
+        .row-screen { background: rgba(251, 146, 60, 0.05); border: 1px solid var(--screen-orange); color: var(--screen-orange); font-size: 18px; font-weight: bold; padding: 2px 8px; font-family: monospace; }
+
+        /* Кнопка Обновить */
+        .refresh-wrap { text-align: center; margin-bottom: 20px; }
+        .refresh-btn { background: transparent; border: 1px solid var(--border-blue); color: var(--border-blue); padding: 6px 15px; border-radius: 20px; font-size: 11px; cursor: pointer; text-transform: uppercase; }
+
+        /* Сетка заправок */
+        .azn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .azn-btn { background: var(--card); border: 1px solid #334155; color: #fff; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        .azn-btn.active { background: var(--border-blue); color: #000; border-color: var(--border-blue); }
+
+        /* Анимация обновления */
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .updating { animation: blink 0.4s infinite; }
+    </style>
+</head>
+<body>
+
+    <div class="fuel-scoreboard" id="board">
+        <div class="score-header">
+            <span class="fuel-icon">⛽</span>
+            <span class="fuel-title">FUEL</span>
+        </div>
+        <div class="score-row"><span class="row-type">AI-80</span><span class="row-screen" id="ai80">00 000</span></div>
+        <div class="score-row"><span class="row-type">AI-92</span><span class="row-screen" id="ai92">00 000</span></div>
+        <div class="score-row"><span class="row-type">AI-95</span><span class="row-screen" id="ai95">00 000</span></div>
+        <div class="score-row"><span class="row-type">DIESEL</span><span class="row-screen" id="die">00 000</span></div>
+        <div class="score-row"><span class="row-type">EV</span><span class="row-screen" id="ev">00 000</span></div>
+    </div>
+
+    <div class="refresh-wrap">
+        <button class="refresh-btn" onclick="refresh()">🔄 Обновить данные</button>
+    </div>
+
+    <div class="azn-grid">
+        <button class="azn-btn active" id="ung" onclick="change('UNG Petro')">UNG Petro</button>
+        <button class="azn-btn" id="mus" onclick="change('Mustang')">Mustang</button>
+        <button class="azn-btn" id="luk" onclick="change('Lukoil')">Lukoil</button>
+        <button class="azn-btn" id="san" onclick="change('Sanoat')">Sanoat</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); tg.ready();
+
+        const prices = {
+            'UNG Petro': {a80:"7 000", a92:"9 500", a95:"11 500", d:"10 500", e:"0"},
+            'Mustang': {a80:"7 150", a92:"9 400", a95:"12 800", d:"11 200", e:"0"},
+            'Lukoil': {a80:"0", a92:"10 500", a95:"14 900", d:"13 500", e:"0"},
+            'Sanoat': {a80:"7 050", a92:"9 200", a95:"10 500", d:"10 200", e:"0"}
+        };
+
+        function change(name) {
+            tg.HapticFeedback.impactOccurred('light');
+            document.querySelectorAll('.azn-btn').forEach(b => b.classList.remove('active'));
+            if(name === 'UNG Petro') document.getElementById('ung').classList.add('active');
+            if(name === 'Mustang') document.getElementById('mus').classList.add('active');
+            if(name === 'Lukoil') document.getElementById('luk').classList.add('active');
+            if(name === 'Sanoat') document.getElementById('san').classList.add('active');
+
+            const p = prices[name];
+            document.getElementById('ai80').innerText = p.a80;
+            document.getElementById('ai92').innerText = p.a92;
+            document.getElementById('ai95').innerText = p.a95;
+            document.getElementById('die').innerText = p.d;
+            document.getElementById('ev').innerText = p.e;
+        }
+
+        function refresh() {
+            tg.HapticFeedback.notificationOccurred('success');
+            const b = document.getElementById('board');
+            b.classList.add('updating');
+            setTimeout(() => { b.classList.remove('updating'); }, 1000);
+        }
+
+        change('UNG Petro');
+    </script>
+</body>
+</html>
