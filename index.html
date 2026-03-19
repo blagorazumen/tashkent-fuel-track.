@@ -1,54 +1,33 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Бензин Ташкент</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        /* Весь дизайн тут */
-        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 15px; }
-        header h1 { font-size: 20px; text-align: center; color: var(--accent); text-transform: uppercase; }
-        .tabs { display: flex; gap: 8px; margin: 20px 0; }
-        .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; background: var(--card); color: var(--text); font-weight: bold; }
-        .tab-btn.active { background: var(--accent); color: #000; }
-        .fuel-card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
-        .price { font-size: 20px; font-weight: 800; color: var(--accent); }
-        .report-btn { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--accent); border: none; padding: 16px; border-radius: 12px; font-weight: bold; color: #000; width: calc(100% - 30px); }
-    </style>
-</head>
-<body>
-    <header><h1>FUEL TRACKER</h1></header>
-    <div class="tabs">
-        <button id="b80" class="tab-btn active" onclick="show('80')">АИ-80</button>
-        <button id="b92" class="tab-btn" onclick="show('92')">АИ-92</button>
-        <button id="b95" class="tab-btn" onclick="show('95')">АИ-95</button>
-    </div>
-    <div id="list"></div>
-    <button class="report-btn" onclick="window.Telegram.WebApp.showAlert('Скоро здесь можно будет отправить цену!')">ОБНОВИТЬ ЦЕНУ</button>
+<style>
+    .refresh-container { text-align: center; margin-bottom: 20px; }
+    .refresh-btn { 
+        background: transparent; border: 1px solid var(--border-blue); 
+        color: var(--border-blue); padding: 8px 20px; border-radius: 20px; 
+        font-size: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase;
+    }
+    /* Анимация моргания при обновлении */
+    @keyframes blink {
+        0% { opacity: 1; }
+        50% { opacity: 0.3; }
+        100% { opacity: 1; }
+    }
+    .updating { animation: blink 0.5s linear; }
+</style>
 
-    <script>
-        /* Вся логика тут */
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+<div class="refresh-container">
+    <button class="refresh-btn" onclick="refreshData()">🔄 Обновить данные</button>
+</div>
 
-        const data = {
-            '80': [{n:"UNG Petro", p:"7 000"}, {n:"Mustang", p:"7 100"}],
-            '92': [{n:"UNG Petro", p:"9 500"}, {n:"Sanoat", p:"9 450"}],
-            '95': [{n:"Lukoil", p:"13 500"}, {n:"Mustang", p:"12 900"}]
-        };
-
-        function show(type) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('b' + type).classList.add('active');
-            const container = document.getElementById('list');
-            container.innerHTML = '';
-            data[type].forEach(i => {
-                container.innerHTML += `<div class="fuel-card"><span>${i.n}</span><span class="price">${i.p}</span></div>`;
-            });
-        }
-        show('80');
-    </script>
-</body>
-</html>
+<script>
+    function refreshData() {
+        tg.HapticFeedback.notificationOccurred('success'); // Вибрация при успехе
+        const board = document.querySelector('.fuel-scoreboard');
+        board.classList.add('updating'); // Включаем моргание
+        
+        // Имитируем загрузку 1 секунду
+        setTimeout(() => {
+            board.classList.remove('updating');
+            tg.showAlert("Данные успешно обновлены!");
+        }, 1000);
+    }
+</script>
